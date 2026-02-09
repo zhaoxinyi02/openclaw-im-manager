@@ -1,0 +1,21 @@
+{
+  "name": "openclaw-qq-manager",
+  "version": "2.0.0",
+  "description": "OpenClaw QQ 个人号 AI 助手 - 内嵌 NapCat，Docker 一键部署，扫码即用",
+  "private": true,
+  "scripts": {
+    "dev:server": "cd server && npx tsx watch src/index.ts",
+    "dev:web": "cd web && npm run dev",
+    "build:server": "cd server && npx tsc",
+    "build:web": "cd web && npm run build",
+    "build": "npm run build:server && npm run build:web",
+    "start": "cd server && node dist/index.js",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "keywords": ["qq", "bot", "napcat", "onebot", "openclaw", "ai", "管理后台", "docker"],
+  "author": "zhaoxinyi02",
+  "license": "MIT"
+}

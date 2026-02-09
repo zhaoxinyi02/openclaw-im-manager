@@ -1,0 +1,12 @@
+node_modules/
+dist/
+data/
+*.log
+.env
+.DS_Store
+napcat-data/
+napcat-config/
+web/tsconfig.tsbuildinfo
+web/dist/
+server/dist/
+docker/qq-plugin/node_modules/

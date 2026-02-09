@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  openclaw-qq:
+    build: .
+    container_name: openclaw-qq
+    restart: unless-stopped
+    ports:
+      - "6099:6099"    # NapCat WebUI
+      - "6199:6199"    # 管理后台
+      - "3001:3001"    # NapCat OneBot11 WS（供宿主机 OpenClaw 连接）
+    volumes:
+      - /root/.openclaw:/root/.openclaw          # OpenClaw 配置
+      - napcat-data:/app/napcat/config            # NapCat 配置持久化
+      - manager-data:/app/manager/data            # 管理后台配置持久化
+      - qq-session:/app/.config/QQ                # QQ 登录 session 持久化
+    environment:
+      - ACCOUNT=${QQ_ACCOUNT:-}                   # QQ 账号（可选，用于快速登录）
+      - WEBUI_TOKEN=${WEBUI_TOKEN:-openclaw-qq-admin}
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-openclaw-qq-admin}
+      - OWNER_QQ=${OWNER_QQ:-0}
+      - NAPCAT_TOKEN=${NAPCAT_TOKEN:-}
+      - OPENCLAW_CONFIG=/root/.openclaw/openclaw.json
+
+volumes:
+  napcat-data:
+  manager-data:
+  qq-session:
