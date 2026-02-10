@@ -10,6 +10,20 @@
 ![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)
 ![Version](https://img.shields.io/badge/version-3.0.0-orange.svg)
 
+## 效果预览
+
+| 仪表盘 | QQ Bot 管理 |
+|:---:|:---:|
+| ![仪表盘](img/dashboard.png) | ![QQ Bot](img/qqbot.png) |
+
+| QQ 登录 | 微信登录 |
+|:---:|:---:|
+| ![QQ 登录](img/qqlogin.png) | ![微信登录](img/wechatlogin.png) |
+
+| 审核中心 | 设置 |
+|:---:|:---:|
+| ![审核中心](img/requests.png) | ![设置](img/settings.png) |
+
 ## 功能特性
 
 ### 双通道 AI 对话

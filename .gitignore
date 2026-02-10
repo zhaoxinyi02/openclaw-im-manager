@@ -10,3 +10,5 @@ web/tsconfig.tsbuildinfo
 web/dist/
 server/dist/
 docker/qq-plugin/node_modules/
+docs/CSDN-blog.md
+demo/
