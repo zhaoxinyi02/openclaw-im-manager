@@ -200,7 +200,8 @@ openclaw-im-manager/
 │       │   └── WeChatLogin.tsx   # 微信扫码登录
 │       └── ...
 └── docs/
-    └── CSDN-blog.md
+    ├── API.md            # API 接口文档
+    └── DEPLOYMENT.md     # 部署指南
 ```
 
 ## 跨平台部署
