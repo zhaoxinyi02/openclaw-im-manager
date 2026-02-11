@@ -20,6 +20,7 @@ services:
       - OWNER_QQ=${OWNER_QQ:-0}
       - NAPCAT_TOKEN=${NAPCAT_TOKEN:-}
       - OPENCLAW_CONFIG=/root/.openclaw/openclaw.json
+      - OPENCLAW_WORK=/root/openclaw/work
       - WECHAT_API_URL=http://wechat:3001
       - WECHAT_TOKEN=${WECHAT_TOKEN:-}
     depends_on:

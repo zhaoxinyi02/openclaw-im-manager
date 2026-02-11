@@ -10,6 +10,7 @@ import { WsManager } from './core/ws-manager.js';
 import { WeChatClient } from './core/wechat-client.js';
 import { createEventRouter } from './core/event-router.js';
 import { createRoutes } from './routes/index.js';
+import { WorkspaceManager } from './core/workspace-manager.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -70,8 +71,12 @@ async function main() {
     }
   });
 
+  // Workspace manager
+  const workDir = process.env['OPENCLAW_WORK'] || '/root/openclaw/work';
+  const workspaceManager = new WorkspaceManager(workDir, path.dirname(cfg.openclaw.configPath || '/root/.openclaw/openclaw.json'));
+
   // API routes
-  const routes = createRoutes(adminConfig, onebotClient, openclawConfig, wechatClient);
+  const routes = createRoutes(adminConfig, onebotClient, openclawConfig, wechatClient, workspaceManager);
   app.use('/api', routes);
 
   // Serve frontend

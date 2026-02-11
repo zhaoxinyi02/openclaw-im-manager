@@ -22,6 +22,20 @@ async function put(path: string, body?: any) {
   return res.json();
 }
 
+function authHeader() {
+  const token = localStorage.getItem('admin-token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+async function uploadFormData(path: string, formData: FormData) {
+  const res = await fetch(BASE + path, {
+    method: 'POST',
+    headers: authHeader() as Record<string, string>,
+    body: formData,
+  });
+  return res.json();
+}
+
 export const api = {
   login: (token: string) => post('/auth/login', { token }),
   getStatus: () => get('/status'),
@@ -57,4 +71,19 @@ export const api = {
   wechatSendFile: (to: string, fileUrl: string, isRoom?: boolean) => post('/wechat/send-file', { to, fileUrl, isRoom }),
   wechatConfig: () => get('/wechat/config'),
   wechatUpdateConfig: (data: any) => put('/wechat/config', data),
+  // Workspace
+  workspaceFiles: (subPath?: string) => get('/workspace/files' + (subPath ? `?path=${encodeURIComponent(subPath)}` : '')),
+  workspaceStats: () => get('/workspace/stats'),
+  workspaceConfig: () => get('/workspace/config'),
+  workspaceUpdateConfig: (data: any) => put('/workspace/config', data),
+  workspaceUpload: (files: File[], subPath?: string) => {
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f));
+    if (subPath) fd.append('path', subPath);
+    return uploadFormData('/workspace/upload', fd);
+  },
+  workspaceMkdir: (name: string, subPath?: string) => post('/workspace/mkdir', { name, path: subPath || '' }),
+  workspaceDelete: (paths: string[]) => post('/workspace/delete', { paths }),
+  workspaceClean: () => post('/workspace/clean'),
+  workspaceDownloadUrl: (filePath: string) => BASE + '/workspace/download?path=' + encodeURIComponent(filePath) + '&token=' + (localStorage.getItem('admin-token') || ''),
 };

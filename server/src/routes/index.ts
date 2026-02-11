@@ -2,14 +2,16 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import http from 'http';
 import crypto from 'crypto';
+import multer from 'multer';
 import { AdminConfig } from '../core/admin-config.js';
 import { OneBotClient } from '../core/onebot-client.js';
 import { OpenClawConfig } from '../core/openclaw-config.js';
 import { WeChatClient } from '../core/wechat-client.js';
+import { WorkspaceManager } from '../core/workspace-manager.js';
 import { getPendingRequests } from '../core/event-router.js';
 import { JWT_SECRET } from '../core/ws-manager.js';
 
-export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClient, openclawConfig: OpenClawConfig, wechatClient: WeChatClient) {
+export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClient, openclawConfig: OpenClawConfig, wechatClient: WeChatClient, workspaceManager?: WorkspaceManager) {
   const router = Router();
 
   // Auth middleware
@@ -386,6 +388,118 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
       res.status(500).json({ ok: false, error: String(err) });
     }
   });
+
+  // === Workspace API ===
+  if (workspaceManager) {
+    const wsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
+    // List files
+    router.get('/workspace/files', auth, (req: any, res: any) => {
+      try {
+        const subPath = (req.query.path as string) || '';
+        const result = workspaceManager.listFiles(subPath);
+        res.json({ ok: true, ...result });
+      } catch (err) {
+        res.status(400).json({ ok: false, error: String(err) });
+      }
+    });
+
+    // Get workspace stats
+    router.get('/workspace/stats', auth, (_req: any, res: any) => {
+      try {
+        const stats = workspaceManager.getStats();
+        res.json({ ok: true, ...stats });
+      } catch (err) {
+        res.status(500).json({ ok: false, error: String(err) });
+      }
+    });
+
+    // Get workspace config
+    router.get('/workspace/config', auth, (_req: any, res: any) => {
+      res.json({ ok: true, config: workspaceManager.getConfig() });
+    });
+
+    // Update workspace config
+    router.put('/workspace/config', auth, (req: any, res: any) => {
+      try {
+        const config = workspaceManager.updateConfig(req.body);
+        res.json({ ok: true, config });
+      } catch (err) {
+        res.status(500).json({ ok: false, error: String(err) });
+      }
+    });
+
+    // Upload file(s)
+    router.post('/workspace/upload', auth, wsUpload.array('files', 20), (req: any, res: any) => {
+      try {
+        const subPath = (req.body.path as string) || '';
+        const files = req.files as Express.Multer.File[];
+        if (!files || files.length === 0) {
+          return res.status(400).json({ ok: false, error: 'No files provided' });
+        }
+        const uploaded = files.map((f: Express.Multer.File) =>
+          workspaceManager.saveUploadedFile(f.originalname, f.buffer, subPath)
+        );
+        res.json({ ok: true, files: uploaded });
+      } catch (err) {
+        res.status(500).json({ ok: false, error: String(err) });
+      }
+    });
+
+    // Create directory
+    router.post('/workspace/mkdir', auth, (req: any, res: any) => {
+      try {
+        const { name, path: subPath } = req.body;
+        if (!name) return res.status(400).json({ ok: false, error: 'Directory name required' });
+        workspaceManager.createDirectory(name, subPath || '');
+        res.json({ ok: true });
+      } catch (err) {
+        res.status(500).json({ ok: false, error: String(err) });
+      }
+    });
+
+    // Delete file(s)
+    router.post('/workspace/delete', auth, (req: any, res: any) => {
+      try {
+        const { paths } = req.body;
+        if (!paths || !Array.isArray(paths) || paths.length === 0) {
+          return res.status(400).json({ ok: false, error: 'No paths provided' });
+        }
+        const result = workspaceManager.deleteMultiple(paths);
+        res.json({ ok: true, ...result });
+      } catch (err) {
+        res.status(500).json({ ok: false, error: String(err) });
+      }
+    });
+
+    // Download file (supports token via query param for direct browser downloads)
+    router.get('/workspace/download', (req: any, res: any) => {
+      try {
+        const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
+        if (!token) return res.status(401).json({ ok: false, error: 'No token' });
+        try { jwt.verify(token, JWT_SECRET); } catch { return res.status(401).json({ ok: false, error: 'Invalid token' }); }
+        const filePath = req.query.path as string;
+        if (!filePath) return res.status(400).json({ ok: false, error: 'Path required' });
+        const { fullPath, stat } = workspaceManager.getFileContent(filePath);
+        res.setHeader('Content-Length', stat.size);
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filePath.split('/').pop() || 'file')}"`);
+        const fs = require('fs');
+        fs.createReadStream(fullPath).pipe(res);
+      } catch (err) {
+        res.status(400).json({ ok: false, error: String(err) });
+      }
+    });
+
+    // Manual clean expired files
+    router.post('/workspace/clean', auth, (_req: any, res: any) => {
+      try {
+        const result = workspaceManager.cleanExpiredFiles();
+        res.json({ ok: true, ...result });
+      } catch (err) {
+        res.status(500).json({ ok: false, error: String(err) });
+      }
+    });
+  }
 
   return router;
 }
