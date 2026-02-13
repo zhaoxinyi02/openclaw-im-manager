@@ -86,4 +86,18 @@ export const api = {
   workspaceDelete: (paths: string[]) => post('/workspace/delete', { paths }),
   workspaceClean: () => post('/workspace/clean'),
   workspaceDownloadUrl: (filePath: string) => BASE + '/workspace/download?path=' + encodeURIComponent(filePath) + '&token=' + (localStorage.getItem('admin-token') || ''),
+  workspacePreviewUrl: (filePath: string) => BASE + '/workspace/preview?path=' + encodeURIComponent(filePath) + '&token=' + (localStorage.getItem('admin-token') || ''),
+  workspacePreview: (filePath: string) => get('/workspace/preview?path=' + encodeURIComponent(filePath)),
+  workspaceNotes: () => get('/workspace/notes'),
+  workspaceSetNote: (filePath: string, note: string) => put('/workspace/notes', { path: filePath, note }),
+  // Event Log
+  getEvents: (opts?: { limit?: number; offset?: number; source?: string; search?: string }) => {
+    const params = new URLSearchParams();
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    if (opts?.offset) params.set('offset', String(opts.offset));
+    if (opts?.source) params.set('source', opts.source);
+    if (opts?.search) params.set('search', opts.search);
+    return get('/events?' + params.toString());
+  },
+  clearEvents: () => post('/events/clear'),
 };

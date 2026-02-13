@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Bot, Settings, UserCheck, Cpu, Moon, Sun, LogOut, Menu, LogIn, MessageCircle, FolderOpen } from 'lucide-react';
+import { LayoutDashboard, Bot, Settings, UserCheck, Cpu, Moon, Sun, LogOut, Menu, MessageCircle, FolderOpen } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '仪表盘' },
   { to: '/workspace', icon: FolderOpen, label: '工作区' },
   { to: '/openclaw', icon: Cpu, label: 'OpenClaw' },
-  { to: '/qqbot', icon: Bot, label: 'QQ Bot' },
-  { to: '/qqlogin', icon: LogIn, label: 'QQ 登录' },
-  { to: '/wechatlogin', icon: MessageCircle, label: '微信登录' },
+  { to: '/qq', icon: Bot, label: 'QQ' },
+  { to: '/wechat', icon: MessageCircle, label: '微信' },
   { to: '/requests', icon: UserCheck, label: '审核' },
   { to: '/settings', icon: Settings, label: '设置' },
 ];

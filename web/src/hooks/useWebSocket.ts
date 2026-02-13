@@ -1,13 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 
+export interface LogEntry {
+  id: string;
+  time: number;
+  source: 'qq' | 'wechat' | 'system' | 'openclaw';
+  type: string;
+  summary: string;
+  detail?: string;
+}
+
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const [events, setEvents] = useState<any[]>([]);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [napcatStatus, setNapcatStatus] = useState<any>({ connected: false });
   const [wechatStatus, setWechatStatus] = useState<any>({ connected: false });
 
-  // Fetch initial status from API
+  // Fetch initial status and event log from API
   useEffect(() => {
     const fetchStatus = () => {
       api.getStatus().then(r => {
@@ -18,6 +28,13 @@ export function useWebSocket() {
     fetchStatus();
     const t = setInterval(fetchStatus, 8000);
     return () => clearInterval(t);
+  }, []);
+
+  // Load persisted event log on mount
+  useEffect(() => {
+    api.getEvents({ limit: 200 }).then(r => {
+      if (r.ok && r.entries) setLogEntries(r.entries);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -33,6 +50,11 @@ export function useWebSocket() {
         const msg = JSON.parse(e.data);
         if (msg.type === 'event' || msg.type === 'wechat-event') {
           setEvents(prev => { const next = [...prev, { ...msg.data, _source: msg.type === 'wechat-event' ? 'wechat' : 'qq' }]; return next.length > 200 ? next.slice(-200) : next; });
+        } else if (msg.type === 'log-entry') {
+          setLogEntries(prev => {
+            const next = [msg.data, ...prev];
+            return next.length > 500 ? next.slice(0, 500) : next;
+          });
         } else if (msg.type === 'napcat-status') {
           setNapcatStatus(msg.data);
         } else if (msg.type === 'wechat-status') {
@@ -49,5 +71,11 @@ export function useWebSocket() {
   }, []);
 
   const clearEvents = useCallback(() => setEvents([]), []);
-  return { events, napcatStatus, wechatStatus, clearEvents };
+  const refreshLog = useCallback(() => {
+    api.getEvents({ limit: 200 }).then(r => {
+      if (r.ok && r.entries) setLogEntries(r.entries);
+    }).catch(() => {});
+  }, []);
+
+  return { events, logEntries, napcatStatus, wechatStatus, clearEvents, refreshLog };
 }

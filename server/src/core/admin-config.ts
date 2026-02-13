@@ -16,6 +16,21 @@ export interface AdminConfigData {
       group: { enabled: boolean; pattern: string; rules: Array<{ groupId: number; autoApprovePattern?: string; welcomeMessage?: string }> };
     };
     notifications: Record<string, boolean>;
+    rateLimit: {
+      wakeProbability: number;
+      minIntervalSec: number;
+      wakeTrigger: {
+        mode: 'any' | 'all';
+        mentionName: boolean;
+        atBot: boolean;
+        keywords: string[];
+        directMessage: boolean;
+      };
+      errorDedup: {
+        enabled: boolean;
+        thresholdSec: number;
+      };
+    };
   };
 }
 
@@ -39,6 +54,21 @@ const DEFAULTS: AdminConfigData = {
       group: { enabled: false, pattern: '', rules: [] },
     },
     notifications: { memberChange: true, adminChange: true, banNotice: true, antiRecall: true, pokeReply: true, honorNotice: true },
+    rateLimit: {
+      wakeProbability: 10,
+      minIntervalSec: 0,
+      wakeTrigger: {
+        mode: 'any' as const,
+        mentionName: true,
+        atBot: true,
+        keywords: [],
+        directMessage: true,
+      },
+      errorDedup: {
+        enabled: true,
+        thresholdSec: 300,
+      },
+    },
   },
 };
 

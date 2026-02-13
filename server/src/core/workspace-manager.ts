@@ -35,13 +35,17 @@ function humanSize(bytes: number): string {
 export class WorkspaceManager {
   private workDir: string;
   private configPath: string;
+  private notesPath: string;
   private config: WorkspaceConfig;
+  private notes: Record<string, string> = {};
   private cleanTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(workDir: string, configDir: string) {
     this.workDir = workDir;
     this.configPath = path.join(configDir, 'workspace-config.json');
+    this.notesPath = path.join(configDir, 'workspace-notes.json');
     this.config = this.loadConfig();
+    this.notes = this.loadNotes();
     this.startAutoClean();
   }
 
@@ -308,6 +312,38 @@ export class WorkspaceManager {
       }
       return fileName === pattern;
     });
+  }
+
+  private loadNotes(): Record<string, string> {
+    try {
+      if (fs.existsSync(this.notesPath)) {
+        return JSON.parse(fs.readFileSync(this.notesPath, 'utf-8'));
+      }
+    } catch {}
+    return {};
+  }
+
+  private saveNotes(): void {
+    try {
+      const dir = path.dirname(this.notesPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(this.notesPath, JSON.stringify(this.notes, null, 2));
+    } catch (err) {
+      console.error('[Workspace] Failed to save notes:', err);
+    }
+  }
+
+  getNotes(): Record<string, string> {
+    return { ...this.notes };
+  }
+
+  setNote(filePath: string, note: string): void {
+    if (note) {
+      this.notes[filePath] = note;
+    } else {
+      delete this.notes[filePath];
+    }
+    this.saveNotes();
   }
 
   private startAutoClean(): void {

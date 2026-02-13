@@ -10,8 +10,11 @@ import { WeChatClient } from '../core/wechat-client.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 import { getPendingRequests } from '../core/event-router.js';
 import { JWT_SECRET } from '../core/ws-manager.js';
+import { EventLog } from '../core/event-log.js';
+import fs from 'fs';
+import path from 'path';
 
-export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClient, openclawConfig: OpenClawConfig, wechatClient: WeChatClient, workspaceManager?: WorkspaceManager) {
+export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClient, openclawConfig: OpenClawConfig, wechatClient: WeChatClient, workspaceManager?: WorkspaceManager, eventLog?: EventLog) {
   const router = Router();
 
   // Auth middleware
@@ -498,6 +501,89 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
       } catch (err) {
         res.status(500).json({ ok: false, error: String(err) });
       }
+    });
+
+    // File notes/remarks
+    router.get('/workspace/notes', auth, (_req: any, res: any) => {
+      try {
+        const notes = workspaceManager.getNotes();
+        res.json({ ok: true, notes });
+      } catch (err) {
+        res.json({ ok: true, notes: {} });
+      }
+    });
+
+    router.put('/workspace/notes', auth, (req: any, res: any) => {
+      try {
+        const { path: filePath, note } = req.body;
+        if (!filePath) return res.status(400).json({ ok: false, error: 'Path required' });
+        workspaceManager.setNote(filePath, note || '');
+        res.json({ ok: true });
+      } catch (err) {
+        res.status(500).json({ ok: false, error: String(err) });
+      }
+    });
+
+    // File preview (text files, images served inline)
+    router.get('/workspace/preview', (req: any, res: any) => {
+      try {
+        const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
+        if (!token) return res.status(401).json({ ok: false, error: 'No token' });
+        try { jwt.verify(token, JWT_SECRET); } catch { return res.status(401).json({ ok: false, error: 'Invalid token' }); }
+        const filePath = req.query.path as string;
+        if (!filePath) return res.status(400).json({ ok: false, error: 'Path required' });
+        const { fullPath, stat } = workspaceManager.getFileContent(filePath);
+        const ext = path.extname(fullPath).toLowerCase();
+        const IMG_EXTS = ['.jpg','.jpeg','.png','.gif','.webp','.bmp','.svg','.ico'];
+        const TXT_EXTS = ['.txt','.md','.log','.json','.jsonl','.js','.ts','.py','.sh','.yaml','.yml','.xml','.html','.css','.csv','.ini','.conf','.toml','.env'];
+        if (IMG_EXTS.includes(ext)) {
+          const mimeMap: Record<string,string> = {'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.gif':'image/gif','.webp':'image/webp','.bmp':'image/bmp','.svg':'image/svg+xml','.ico':'image/x-icon'};
+          res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+          res.setHeader('Content-Length', stat.size);
+          fs.createReadStream(fullPath).pipe(res);
+        } else if (TXT_EXTS.includes(ext)) {
+          const maxSize = 512 * 1024; // 512KB max for text preview
+          if (stat.size > maxSize) {
+            return res.json({ ok: true, type: 'text', content: fs.readFileSync(fullPath, 'utf-8').slice(0, maxSize) + '\n\n... (文件过大，已截断)', truncated: true });
+          }
+          res.json({ ok: true, type: 'text', content: fs.readFileSync(fullPath, 'utf-8'), truncated: false });
+        } else {
+          res.json({ ok: false, error: '不支持预览此文件类型', ext });
+        }
+      } catch (err) {
+        res.status(400).json({ ok: false, error: String(err) });
+      }
+    });
+  }
+
+  // === Event Log API ===
+  if (eventLog) {
+    router.get('/events', auth, (req: any, res: any) => {
+      const limit = parseInt(req.query.limit) || 100;
+      const offset = parseInt(req.query.offset) || 0;
+      const source = req.query.source as string || undefined;
+      const search = req.query.search as string || undefined;
+      const result = eventLog.getEntries({ limit, offset, source, search });
+      res.json({ ok: true, ...result });
+    });
+
+    router.post('/events/clear', auth, (_req: any, res: any) => {
+      eventLog.clear();
+      res.json({ ok: true });
+    });
+
+    // Allow external services (e.g. OpenClaw QQ plugin) to post log entries
+    router.post('/events/log', (req: any, res: any) => {
+      const { source, type, summary, detail } = req.body || {};
+      if (!summary) return res.status(400).json({ ok: false, error: 'summary required' });
+      const entry = eventLog.add({
+        time: Date.now(),
+        source: source || 'openclaw',
+        type: type || 'openclaw.action',
+        summary,
+        detail,
+      });
+      res.json({ ok: true, id: entry.id });
     });
   }
 

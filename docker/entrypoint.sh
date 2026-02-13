@@ -54,7 +54,7 @@ cat > "${ONEBOT_CONFIG}" << EOF
                 "host": "0.0.0.0",
                 "port": ${NAPCAT_WS_PORT},
                 "token": "${NAPCAT_TOKEN}",
-                "reportSelfMessage": false,
+                "reportSelfMessage": true,
                 "enableForcePushEvent": true,
                 "messagePostFormat": "array",
                 "debug": false,

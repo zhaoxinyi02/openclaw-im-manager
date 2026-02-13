@@ -11,6 +11,7 @@ export class OneBotClient extends EventEmitter {
   public selfId = 0;
   public nickname = '';
   public connected = false;
+  public onApiCall?: (action: string, params: any) => void;
 
   constructor(wsUrl: string, accessToken: string) {
     super();
@@ -90,6 +91,7 @@ export class OneBotClient extends EventEmitter {
       const echo = 'req_' + (++this.echoCounter) + '_' + Date.now();
       this.pendingRequests.set(echo, { resolve, reject });
       this.ws.send(JSON.stringify({ action, params, echo }));
+      if (this.onApiCall) try { this.onApiCall(action, params); } catch {}
       setTimeout(() => {
         if (this.pendingRequests.has(echo)) {
           this.pendingRequests.delete(echo);

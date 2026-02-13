@@ -4,6 +4,7 @@ import {
   FolderOpen, File, Trash2, Upload, FolderPlus, RefreshCw,
   ChevronRight, Home, Settings2, Clock, HardDrive, AlertTriangle, Check, X,
   FileText, FileImage, FileVideo, FileAudio, FileArchive, FileCode, Download,
+  Eye, Edit3, ArrowUpDown, ChevronUp, ChevronDown, MessageSquare,
 } from 'lucide-react';
 
 interface WsFile {
@@ -13,12 +14,17 @@ interface WsFile {
 interface WsConfig { autoCleanEnabled: boolean; autoCleanDays: number; excludePatterns: string[]; }
 interface WsStats { totalFiles: number; totalSize: number; totalSizeHuman: string; oldFiles: number; }
 
+type SortKey = 'name' | 'size' | 'modifiedAt' | 'ageDays';
+type SortDir = 'asc' | 'desc';
+
 const IMG = ['.jpg','.jpeg','.png','.gif','.webp','.bmp','.svg','.ico'];
 const VID = ['.mp4','.avi','.mov','.mkv','.webm'];
 const AUD = ['.mp3','.wav','.ogg','.flac','.amr','.silk'];
 const ARC = ['.zip','.tar','.gz','.rar','.7z','.tgz'];
 const CODE = ['.ts','.js','.py','.sh','.json','.yaml','.yml','.xml','.html','.css'];
 const TXT = ['.md','.txt','.log','.jsonl'];
+const PREVIEWABLE_IMG = IMG;
+const PREVIEWABLE_TXT = ['.txt','.md','.log','.json','.jsonl','.js','.ts','.py','.sh','.yaml','.yml','.xml','.html','.css','.csv','.ini','.conf','.toml','.env'];
 
 function FIcon({ f }: { f: WsFile }) {
   if (f.isDirectory) return <FolderOpen size={18} className="text-amber-500" />;
@@ -43,12 +49,17 @@ function relTime(iso: string) {
   return d.toLocaleDateString();
 }
 
+function canPreview(ext: string) {
+  return PREVIEWABLE_IMG.includes(ext) || PREVIEWABLE_TXT.includes(ext);
+}
+
 export default function Workspace() {
   const [files, setFiles] = useState<WsFile[]>([]);
   const [curPath, setCurPath] = useState('');
   const [parentPath, setParentPath] = useState<string | null>(null);
   const [stats, setStats] = useState<WsStats | null>(null);
   const [config, setConfig] = useState<WsConfig | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [showCfg, setShowCfg] = useState(false);
@@ -56,6 +67,11 @@ export default function Workspace() {
   const [mkName, setMkName] = useState('');
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<{ t: string; ok: boolean } | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [preview, setPreview] = useState<{ path: string; type: 'image' | 'text'; content?: string } | null>(null);
   const fRef = useRef<HTMLInputElement>(null);
 
   const flash = (t: string, ok = true) => { setToast({ t, ok }); setTimeout(() => setToast(null), 3000); };
@@ -68,13 +84,36 @@ export default function Workspace() {
 
   const loadStats = useCallback(async () => { try { const r = await api.workspaceStats(); if (r.ok) setStats(r); } catch {} }, []);
   const loadCfg = useCallback(async () => { try { const r = await api.workspaceConfig(); if (r.ok) setConfig(r.config); } catch {} }, []);
+  const loadNotes = useCallback(async () => { try { const r = await api.workspaceNotes(); if (r.ok) setNotes(r.notes || {}); } catch {} }, []);
 
-  useEffect(() => { load(); loadStats(); loadCfg(); }, [load, loadStats, loadCfg]);
+  useEffect(() => { load(); loadStats(); loadCfg(); loadNotes(); }, [load, loadStats, loadCfg, loadNotes]);
 
-  const nav = (p: string) => load(p);
+  const nav = (p: string) => { load(p); setPreview(null); };
 
   const toggle = (p: string) => setSel(prev => { const n = new Set(prev); n.has(p) ? n.delete(p) : n.add(p); return n; });
-  const selAll = () => setSel(prev => prev.size === files.length ? new Set() : new Set(files.map(f => f.path)));
+  const selAll = () => setSel(prev => prev.size === sortedFiles.length ? new Set() : new Set(sortedFiles.map(f => f.path)));
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir(key === 'name' ? 'asc' : 'desc'); }
+  };
+
+  const sortedFiles = [...files].sort((a, b) => {
+    if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+    let cmp = 0;
+    switch (sortKey) {
+      case 'name': cmp = a.name.localeCompare(b.name); break;
+      case 'size': cmp = a.size - b.size; break;
+      case 'modifiedAt': cmp = new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime(); break;
+      case 'ageDays': cmp = a.ageDays - b.ageDays; break;
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <ArrowUpDown size={12} className="text-gray-300" />;
+    return sortDir === 'asc' ? <ChevronUp size={12} className="text-indigo-500" /> : <ChevronDown size={12} className="text-indigo-500" />;
+  };
 
   const handleDel = async () => {
     if (sel.size === 0) return;
@@ -117,6 +156,34 @@ export default function Workspace() {
     else flash(r.error || '保存失败', false);
   };
 
+  const saveNote = async (filePath: string) => {
+    await api.workspaceSetNote(filePath, noteText);
+    setNotes(prev => {
+      const n = { ...prev };
+      if (noteText) n[filePath] = noteText; else delete n[filePath];
+      return n;
+    });
+    setEditingNote(null);
+    flash('备注已保存');
+  };
+
+  const openPreview = async (f: WsFile) => {
+    if (f.isDirectory) return;
+    const ext = f.extension;
+    if (PREVIEWABLE_IMG.includes(ext)) {
+      setPreview({ path: f.path, type: 'image' });
+    } else if (PREVIEWABLE_TXT.includes(ext)) {
+      try {
+        const r = await api.workspacePreview(f.path);
+        if (r.ok && r.type === 'text') {
+          setPreview({ path: f.path, type: 'text', content: r.content });
+        } else {
+          flash(r.error || '无法预览', false);
+        }
+      } catch { flash('预览失败', false); }
+    }
+  };
+
   const crumbs = () => {
     const parts = curPath ? curPath.split('/').filter(Boolean) : [];
     const c: { l: string; p: string }[] = [{ l: '工作区', p: '' }];
@@ -126,7 +193,7 @@ export default function Workspace() {
   };
 
   return (
-    <div className="space-y-4 max-w-6xl">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">工作区文件管理</h1>
@@ -228,34 +295,82 @@ export default function Workspace() {
         </div>
       )}
 
+      {/* Preview modal */}
+      {preview && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+              <span className="text-sm font-medium truncate">{preview.path.split('/').pop()}</span>
+              <div className="flex items-center gap-2">
+                <a href={api.workspaceDownloadUrl(preview.path)} className="text-xs text-indigo-600 hover:underline">下载</a>
+                <button onClick={() => setPreview(null)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"><X size={16} /></button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {preview.type === 'image' ? (
+                <img src={api.workspacePreviewUrl(preview.path)} alt={preview.path} className="max-w-full mx-auto rounded" />
+              ) : (
+                <pre className="text-xs font-mono whitespace-pre-wrap break-all text-gray-700 dark:text-gray-300">{preview.content}</pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* File table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-        <div className="hidden sm:grid grid-cols-[32px_1fr_80px_80px_120px_40px] gap-2 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
-          <div><input type="checkbox" checked={files.length > 0 && sel.size === files.length} onChange={selAll} className="rounded" /></div>
-          <div>名称</div><div>大小</div><div>天数</div><div>修改时间</div><div></div>
+        <div className="hidden sm:grid grid-cols-[32px_1fr_minmax(120px,1.5fr)_80px_100px_80px] gap-2 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+          <div><input type="checkbox" checked={sortedFiles.length > 0 && sel.size === sortedFiles.length} onChange={selAll} className="rounded" /></div>
+          <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200 text-left">名称 <SortIcon k="name" /></button>
+          <div className="flex items-center gap-1"><MessageSquare size={12} /> 备注</div>
+          <button onClick={() => handleSort('size')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200">大小 <SortIcon k="size" /></button>
+          <button onClick={() => handleSort('modifiedAt')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200">修改时间 <SortIcon k="modifiedAt" /></button>
+          <div>操作</div>
         </div>
 
         {loading ? (
           <div className="p-8 text-center text-gray-400"><RefreshCw size={20} className="animate-spin mx-auto mb-2" /> 加载中...</div>
-        ) : files.length === 0 ? (
+        ) : sortedFiles.length === 0 ? (
           <div className="p-8 text-center text-gray-400"><FolderOpen size={24} className="mx-auto mb-2 opacity-50" /> 空文件夹</div>
         ) : (
-          files.map(f => (
+          sortedFiles.map(f => (
             <div key={f.path}
-              className={`grid grid-cols-[32px_1fr_80px_80px_120px_40px] gap-2 px-4 py-2.5 items-center text-sm border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${sel.has(f.path) ? 'bg-indigo-50/50 dark:bg-indigo-950/30' : ''}`}>
+              className={`grid grid-cols-[32px_1fr_minmax(120px,1.5fr)_80px_100px_80px] gap-2 px-4 py-2 items-center text-sm border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${sel.has(f.path) ? 'bg-indigo-50/50 dark:bg-indigo-950/30' : ''}`}>
               <div><input type="checkbox" checked={sel.has(f.path)} onChange={() => toggle(f.path)} className="rounded" /></div>
               <div className="flex items-center gap-2 min-w-0">
                 <FIcon f={f} />
                 {f.isDirectory ? (
                   <button onClick={() => nav(f.path)} className="truncate text-left hover:text-indigo-600 dark:hover:text-indigo-400 font-medium">{f.name}</button>
                 ) : (
-                  <span className="truncate">{f.name}</span>
+                  <button onClick={() => canPreview(f.extension) ? openPreview(f) : undefined}
+                    className={`truncate text-left ${canPreview(f.extension) ? 'hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer' : ''}`}>{f.name}</button>
+                )}
+              </div>
+              <div className="min-w-0">
+                {editingNote === f.path ? (
+                  <div className="flex items-center gap-1">
+                    <input autoFocus value={noteText} onChange={e => setNoteText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveNote(f.path); if (e.key === 'Escape') setEditingNote(null); }}
+                      className="flex-1 px-1.5 py-0.5 text-xs border border-gray-200 dark:border-gray-700 rounded bg-transparent min-w-0" placeholder="添加备注..." />
+                    <button onClick={() => saveNote(f.path)} className="text-emerald-500 hover:text-emerald-600"><Check size={13} /></button>
+                    <button onClick={() => setEditingNote(null)} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setEditingNote(f.path); setNoteText(notes[f.path] || ''); }}
+                    className="text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-500 truncate block max-w-full text-left"
+                    title={notes[f.path] || '点击添加备注'}>
+                    {notes[f.path] || <span className="opacity-0 group-hover:opacity-50">—</span>}
+                  </button>
                 )}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">{f.isDirectory ? '-' : f.sizeHuman}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{f.ageDays}d</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">{relTime(f.modifiedAt)}</div>
-              <div>
+              <div className="flex items-center gap-0.5">
+                {!f.isDirectory && canPreview(f.extension) && (
+                  <button onClick={() => openPreview(f)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" title="预览">
+                    <Eye size={14} className="text-gray-400" />
+                  </button>
+                )}
                 {!f.isDirectory && (
                   <a href={api.workspaceDownloadUrl(f.path)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 inline-block" title="下载">
                     <Download size={14} className="text-gray-400" />

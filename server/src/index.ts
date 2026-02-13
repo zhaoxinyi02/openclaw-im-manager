@@ -11,6 +11,7 @@ import { WeChatClient } from './core/wechat-client.js';
 import { createEventRouter } from './core/event-router.js';
 import { createRoutes } from './routes/index.js';
 import { WorkspaceManager } from './core/workspace-manager.js';
+import { EventLog } from './core/event-log.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -73,10 +74,15 @@ async function main() {
 
   // Workspace manager
   const workDir = process.env['OPENCLAW_WORK'] || '/root/openclaw/work';
-  const workspaceManager = new WorkspaceManager(workDir, path.dirname(cfg.openclaw.configPath || '/root/.openclaw/openclaw.json'));
+  const configDir = path.dirname(cfg.openclaw.configPath || '/root/.openclaw/openclaw.json');
+  const workspaceManager = new WorkspaceManager(workDir, configDir);
+
+  // Event log
+  const eventLog = new EventLog(path.join(configDir, 'manager-data'));
+  eventLog.addSystemEvent('管理后台启动');
 
   // API routes
-  const routes = createRoutes(adminConfig, onebotClient, openclawConfig, wechatClient, workspaceManager);
+  const routes = createRoutes(adminConfig, onebotClient, openclawConfig, wechatClient, workspaceManager, eventLog);
   app.use('/api', routes);
 
   // Serve frontend
@@ -108,10 +114,26 @@ async function main() {
     wsManager.broadcast('napcat-status', { connected: false });
   });
 
+  // Broadcast all new log entries via WebSocket (covers both direct adds and API-posted entries)
+  eventLog.onAdd = (entry) => wsManager.broadcast('log-entry', entry);
+
   onebotClient.on('event', (event: any) => {
     eventRouter(event);
     wsManager.broadcast('event', event);
+    // Log to persistent event log (pass selfId to detect bot's own messages)
+    eventLog.addQQEvent(event, onebotClient.selfId);
   });
+
+  // Log outbound API calls from the manager's own OneBot client
+  onebotClient.onApiCall = (action, params) => {
+    if (action === 'send_private_msg' || action === 'send_group_msg') {
+      const msgText = Array.isArray(params.message)
+        ? params.message.map((s: any) => s.type === 'text' ? s.data?.text || '' : `[${s.type}]`).join('')
+        : String(params.message || '');
+      const target = action === 'send_group_msg' ? `群${params.group_id}` : `私聊${params.user_id}`;
+      eventLog.addQQOutbound(action, `→ ${target}: ${msgText.slice(0, 200)}`);
+    }
+  };
 
   // === WeChat ===
   wechatClient.start();
@@ -134,6 +156,8 @@ async function main() {
   wechatClient.on('message', async (event: any) => {
     console.log(`[WeChat] 消息: ${event.fromName}: ${(event.content || '').slice(0, 50)}`);
     wsManager.broadcast('wechat-event', event);
+    const entry = eventLog.addWeChatEvent(event);
+    if (entry) wsManager.broadcast('log-entry', entry);
 
     // Auto-reply via OpenClaw if enabled
     const wcfg = adminConfig.get().wechat;
@@ -155,6 +179,8 @@ async function main() {
   wechatClient.on('system', (event: any) => {
     console.log(`[WeChat] 系统事件: ${event.type}`);
     wsManager.broadcast('wechat-event', event);
+    const entry = eventLog.addSystemEvent(`微信系统事件: ${event.type}`);
+    if (entry) wsManager.broadcast('log-entry', entry);
   });
 
   // Start server
