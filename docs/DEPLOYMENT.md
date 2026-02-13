@@ -1,4 +1,4 @@
-# 部署指南
+# ClawPanel 部署指南
 
 ## 环境要求
 
@@ -22,8 +22,8 @@ openclaw onboard
 openclaw gateway start
 
 # 3. 克隆项目
-git clone https://github.com/zhaoxinyi02/openclaw-im-manager.git
-cd openclaw-im-manager
+git clone https://github.com/zhaoxinyi02/ClawPanel.git
+cd ClawPanel
 
 # 4. 配置
 cp .env.example .env
@@ -49,8 +49,8 @@ chmod +x setup-openclaw.sh
 
 ```powershell
 # 克隆项目
-git clone https://github.com/zhaoxinyi02/openclaw-im-manager.git
-cd openclaw-im-manager
+git clone https://github.com/zhaoxinyi02/ClawPanel.git
+cd ClawPanel
 
 # 配置
 copy .env.example .env
@@ -67,7 +67,7 @@ powershell -ExecutionPolicy Bypass -File setup-openclaw.ps1
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `ADMIN_TOKEN` | 是 | `openclaw-qq-admin` | 管理后台登录密码 |
+| `ADMIN_TOKEN` | 是 | `openclaw-qq-admin` | ClawPanel 登录密码 |
 | `QQ_ACCOUNT` | 否 | 空 | QQ 号，填写后支持快速登录 |
 | `OWNER_QQ` | 否 | `0` | 主人 QQ 号，接收通知 |
 | `WEBUI_TOKEN` | 否 | `openclaw-qq-admin` | NapCat WebUI Token |
@@ -79,8 +79,8 @@ powershell -ExecutionPolicy Bypass -File setup-openclaw.ps1
 
 | 宿主机端口 | 容器端口 | 服务 | 用途 |
 |------------|----------|------|------|
+| 6199 | 6199 | ClawPanel | 主入口 |
 | 6099 | 6099 | NapCat WebUI | QQ 管理（可选访问） |
-| 6199 | 6199 | 管理后台 | 主入口 |
 | 3001 | 3001 | OneBot11 WS | OpenClaw 连接 QQ |
 | 3002 | 3001 | 微信 Webhook | 微信 API（调试用） |
 
@@ -90,7 +90,7 @@ powershell -ExecutionPolicy Bypass -File setup-openclaw.ps1
 |--------|----------|------|
 | `qq-session` | `/app/.config/QQ` | QQ 登录 session 持久化 |
 | `napcat-data` | `/app/napcat/config` | NapCat 配置 |
-| `manager-data` | `/app/manager/data` | 管理后台配置 |
+| `manager-data` | `/app/manager/data` | ClawPanel 配置 |
 | `wechat-data` | `/app/data` | 微信登录数据 |
 
 ## 常用运维命令
@@ -130,7 +130,7 @@ docker compose up -d
 
 ```bash
 # UFW (Ubuntu)
-sudo ufw allow 6199/tcp   # 管理后台（必须）
+sudo ufw allow 6199/tcp   # ClawPanel（必须）
 sudo ufw allow 3001/tcp   # OneBot WS（OpenClaw 需要）
 # 6099 和 3002 仅调试时开放
 
@@ -142,12 +142,12 @@ sudo firewall-cmd --reload
 
 ## 反向代理（可选）
 
-如需通过域名 + HTTPS 访问管理后台，可配置 Nginx：
+如需通过域名 + HTTPS 访问 ClawPanel，可配置 Nginx：
 
 ```nginx
 server {
     listen 443 ssl;
-    server_name admin.example.com;
+    server_name panel.example.com;
 
     ssl_certificate     /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;

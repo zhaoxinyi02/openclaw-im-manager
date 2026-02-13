@@ -1,4 +1,4 @@
-# API 接口文档
+# ClawPanel API 接口文档
 
 所有接口需要 JWT 认证（除 `/api/auth/login`），请在请求头中添加：
 ```
@@ -23,7 +23,7 @@ Authorization: Bearer <token>
 ## 系统状态
 
 ### GET `/api/status`
-获取系统整体状态。
+获取系统整体状态（仪表盘数据源）。
 
 **响应：**
 ```json
@@ -45,12 +45,41 @@ Authorization: Bearer <token>
     "configured": true,
     "qqPluginEnabled": true,
     "qqChannelEnabled": true,
-    "currentModel": "openai/gpt-4o"
+    "currentModel": "anthropic/claude-sonnet-4-5"
   },
   "admin": {
     "uptime": 3600,
     "memoryMB": 128
   }
+}
+```
+
+## 活动日志
+
+### GET `/api/events`
+获取活动日志列表。
+
+**查询参数：**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `limit` | number | 返回条数，默认 100 |
+| `offset` | number | 偏移量，默认 0 |
+| `source` | string | 来源筛选：`qq` / `wechat` / `openclaw` / `system` |
+| `search` | string | 关键词搜索 |
+
+### POST `/api/events/clear`
+清空所有日志。
+
+### POST `/api/events/log`
+外部服务推送日志条目（无需认证）。
+
+**请求体：**
+```json
+{
+  "source": "openclaw",
+  "type": "openclaw.action",
+  "summary": "日志摘要",
+  "detail": "详细信息（可选）"
 }
 ```
 
@@ -112,26 +141,8 @@ Authorization: Bearer <token>
 ### GET `/api/wechat/status`
 获取微信连接和登录状态。
 
-**响应：**
-```json
-{
-  "ok": true,
-  "connected": true,
-  "loggedIn": true,
-  "name": "微信昵称"
-}
-```
-
 ### GET `/api/wechat/login-url`
 获取微信扫码登录页面地址。
-
-**响应：**
-```json
-{
-  "ok": true,
-  "url": "http://wechat:3001/login?token=xxx"
-}
-```
 
 ### POST `/api/wechat/send`
 发送微信文本消息。
@@ -163,21 +174,13 @@ Authorization: Bearer <token>
 ### PUT `/api/wechat/config`
 更新微信配置。
 
-**请求体：**
-```json
-{
-  "enabled": true,
-  "autoReply": true
-}
-```
-
 ## OpenClaw 配置
 
 ### GET `/api/openclaw/config`
-获取完整 openclaw.json 配置。
+获取完整 openclaw.json 配置（系统配置页数据源）。
 
 ### PUT `/api/openclaw/config`
-更新完整配置。
+更新完整配置（系统配置页保存）。
 
 **请求体：**
 ```json
@@ -190,13 +193,22 @@ Authorization: Bearer <token>
 ### PUT `/api/openclaw/models`
 更新模型配置。
 
+### GET `/api/openclaw/channels`
+获取通道配置（通道管理页数据源）。
+
+### PUT `/api/openclaw/channels/:id`
+更新指定通道配置。
+
+### PUT `/api/openclaw/plugins/:id`
+更新指定插件配置（技能中心启用/禁用）。
+
 ## 管理配置
 
 ### GET `/api/admin/config`
-获取管理后台配置（防撤回、戳一戳、欢迎语等）。
+获取 ClawPanel 管理配置（通道详细参数等）。
 
 ### PUT `/api/admin/config`
-更新管理后台配置。
+更新管理配置。
 
 ### PUT `/api/admin/config/:section`
 更新指定配置段（如 `qq`、`wechat`）。
@@ -217,10 +229,33 @@ Authorization: Bearer <token>
 { "reason": "拒绝原因" }
 ```
 
+## 工作区
+
+### GET `/api/workspace/files`
+列出工作区文件。
+
+### GET `/api/workspace/stats`
+获取工作区统计信息。
+
+### POST `/api/workspace/upload`
+上传文件（multipart/form-data）。
+
+### POST `/api/workspace/mkdir`
+创建目录。
+
+### POST `/api/workspace/delete`
+删除文件/目录。
+
+### GET `/api/workspace/download?path=xxx`
+下载文件。
+
+### GET `/api/workspace/preview?path=xxx`
+预览文件（文本/图片）。
+
 ## WebSocket
 
 ### `/ws?token=<JWT>`
-管理后台实时事件推送。
+ClawPanel 实时事件推送。
 
 **消息类型：**
 | type | 说明 |
@@ -229,6 +264,7 @@ Authorization: Bearer <token>
 | `wechat-status` | 微信连接状态变更 |
 | `event` | QQ 事件（消息、通知等） |
 | `wechat-event` | 微信事件（消息等） |
+| `log-entry` | 活动日志新条目 |
 
 ### `/onebot`
 OneBot11 WebSocket 代理，供宿主机 OpenClaw 连接到容器内 NapCat。

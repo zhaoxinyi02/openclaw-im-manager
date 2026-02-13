@@ -1,7 +1,7 @@
 {
-  "name": "openclaw-im-manager",
-  "version": "2.0.0",
-  "description": "OpenClaw IM Manager - QQ + 微信双通道 AI 助手，Docker 一键部署，扫码即用",
+  "name": "clawpanel",
+  "version": "4.0.0",
+  "description": "ClawPanel — OpenClaw 智能管理面板，多通道接入、技能管理、定时任务、深度配置",
   "private": true,
   "scripts": {
     "dev:server": "cd server && npx tsx watch src/index.ts",
@@ -15,7 +15,7 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f"
   },
-  "keywords": ["qq", "wechat", "bot", "napcat", "onebot", "openclaw", "ai", "管理后台", "docker", "im"],
+  "keywords": ["clawpanel", "openclaw", "qq", "wechat", "telegram", "discord", "bot", "napcat", "onebot", "ai", "管理面板", "docker"],
   "author": "zhaoxinyi02",
   "license": "MIT"
 }

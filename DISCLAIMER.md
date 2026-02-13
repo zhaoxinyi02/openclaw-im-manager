@@ -1,12 +1,12 @@
 # ⚠️ 免责声明 / Disclaimer
 
-> **最后更新：2026-02-10**
+> **最后更新：2026-02-13**
 
 ---
 
 ## 一、项目性质声明
 
-本项目 **OpenClaw IM Manager** 是一个**开源学习项目**，仅用于**技术研究、学习交流**目的。
+本项目 **ClawPanel** 是一个**开源学习项目**，仅用于**技术研究、学习交流**目的。
 
 - ✅ 本项目**仅做项目整合与接口对接**，将已有的开源组件（NapCat、wechatbot-webhook、OpenClaw）通过 Docker Compose 编排在一起，并提供了一个可视化管理后台。
 - ✅ 本项目**未进行任何逆向工程、协议破解、反编译**等操作。
@@ -63,7 +63,7 @@
 - 本项目中使用的所有第三方组件均遵循其各自的开源许可证。
 - 本项目**不主张对 QQ、微信及其相关协议的任何权利**。
 
-如有任何知识产权方面的疑虑，请通过 [GitHub Issues](https://github.com/zhaoxinyi02/openclaw-im-manager/issues) 联系，我们将及时处理。
+如有任何知识产权方面的疑虑，请通过 [GitHub Issues](https://github.com/zhaoxinyi02/ClawPanel/issues) 联系，我们将及时处理。
 
 ---
 
@@ -93,7 +93,7 @@
 
 如有任何问题或疑虑，请通过以下方式联系：
 
-- **GitHub Issues**: [https://github.com/zhaoxinyi02/openclaw-im-manager/issues](https://github.com/zhaoxinyi02/openclaw-im-manager/issues)
+- **GitHub Issues**: [https://github.com/zhaoxinyi02/ClawPanel/issues](https://github.com/zhaoxinyi02/ClawPanel/issues)
 
 ---
 
