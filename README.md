@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="img/logo.png" width="700"/>
+
 # 🐾 ClawPanel
 
 **OpenClaw 智能管理面板 — 比官方控制台更强大的可视化管理工具**
