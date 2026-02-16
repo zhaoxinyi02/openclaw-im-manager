@@ -1,4 +1,4 @@
-# ClawPanel API 接口文档
+# ClawPanel API 接口文档 (v4.2.1)
 
 所有接口需要 JWT 认证（除 `/api/auth/login`），请在请求头中添加：
 ```
@@ -23,7 +23,7 @@ Authorization: Bearer <token>
 ## 系统状态
 
 ### GET `/api/status`
-获取系统整体状态（仪表盘数据源）。
+获取系统整体状态（仪表盘 + 侧边栏数据源）。
 
 **响应：**
 ```json
@@ -45,7 +45,11 @@ Authorization: Bearer <token>
     "configured": true,
     "qqPluginEnabled": true,
     "qqChannelEnabled": true,
-    "currentModel": "anthropic/claude-sonnet-4-5"
+    "currentModel": "anthropic/claude-sonnet-4-5",
+    "enabledChannels": [
+      { "id": "qq", "label": "QQ (NapCat)", "type": "builtin" },
+      { "id": "feishu", "label": "飞书 / Lark", "type": "plugin" }
+    ]
   },
   "admin": {
     "uptime": 3600,
@@ -281,6 +285,95 @@ Authorization: Bearer <token>
 
 ### GET `/api/workspace/preview?path=xxx`
 预览文件（文本/图片）。
+
+### GET `/api/workspace/config`
+获取工作区配置（自动清理等）。
+
+### PUT `/api/workspace/config`
+更新工作区配置。
+
+### POST `/api/workspace/clean`
+手动触发工作区清理。
+
+### GET `/api/workspace/notes`
+获取文件备注列表。
+
+### PUT `/api/workspace/notes`
+设置文件备注。
+
+**请求体：**
+```json
+{ "path": "文件路径", "note": "备注内容" }
+```
+
+## 系统管理
+
+### GET `/api/system/env`
+获取运行环境信息（OS、软件版本等）。
+
+### GET `/api/system/version`
+获取 OpenClaw 版本信息。
+
+### POST `/api/system/check-update`
+检查 OpenClaw 更新。
+
+### POST `/api/system/do-update`
+执行 OpenClaw 更新。
+
+### GET `/api/system/update-status`
+获取更新进度状态。
+
+### POST `/api/system/backup`
+创建 openclaw.json 配置备份。
+
+### GET `/api/system/backups`
+获取备份列表。
+
+### POST `/api/system/restore`
+恢复指定备份。
+
+**请求体：**
+```json
+{ "backupName": "备份文件名" }
+```
+
+### GET `/api/system/skills`
+获取已安装技能列表。
+
+### POST `/api/system/clawhub-sync`
+同步 ClawHub 商店技能列表。
+
+### GET `/api/system/cron`
+获取定时任务列表。
+
+### PUT `/api/system/cron`
+更新定时任务。
+
+**请求体：**
+```json
+{ "jobs": [...] }
+```
+
+### GET `/api/system/docs`
+获取 OpenClaw 目录下的文档列表。
+
+### PUT `/api/system/docs`
+保存文档内容。
+
+### GET `/api/system/identity-docs`
+获取身份文档列表（MD 文件）。
+
+### PUT `/api/system/identity-docs`
+保存身份文档。
+
+### GET `/api/system/admin-token`
+获取当前管理员 Token（用于系统配置页显示）。
+
+### GET `/api/system/sudo-password`
+检查是否已配置 sudo 密码。
+
+### PUT `/api/system/sudo-password`
+设置 sudo 密码（用于系统更新操作）。
 
 ## WebSocket
 

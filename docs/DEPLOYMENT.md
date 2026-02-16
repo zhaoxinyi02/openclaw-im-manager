@@ -1,4 +1,4 @@
-# ClawPanel 部署指南
+# ClawPanel 部署指南 (v4.2.1)
 
 ## 环境要求
 
@@ -185,7 +185,7 @@ docker compose logs openclaw-qq 2>&1 | head -50
 - 检查端口 3002 是否被占用
 
 ### OpenClaw 连接失败
-- 确认 `openclaw.json` 中 QQ 频道的 `wsUrl` 为 `ws://127.0.0.1:6199/onebot`
+- 确认 `openclaw.json` 中 QQ 频道的 `wsUrl` 为 `ws://127.0.0.1:3001`
 - 重新运行配置脚本：`./setup-openclaw.sh`
 - 重启 OpenClaw：`systemctl restart openclaw`
 

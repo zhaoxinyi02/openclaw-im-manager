@@ -1,6 +1,6 @@
 {
   "name": "clawpanel",
-  "version": "4.1.0",
+  "version": "4.2.1",
   "description": "ClawPanel — OpenClaw 智能管理面板，多通道接入、技能管理、定时任务、深度配置",
   "private": true,
   "scripts": {
@@ -10,12 +10,12 @@
     "build:web": "cd web && npm run build",
     "build": "npm run build:server && npm run build:web",
     "start": "cd server && node dist/index.js",
-    "docker:build": "docker-compose build",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "keywords": ["clawpanel", "openclaw", "qq", "wechat", "telegram", "discord", "bot", "napcat", "onebot", "ai", "管理面板", "docker"],
   "author": "zhaoxinyi02",
-  "license": "MIT"
+  "license": "CC-BY-NC-SA-4.0"
 }

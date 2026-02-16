@@ -2,6 +2,7 @@ node_modules/
 dist/
 data/
 *.log
+*.bak
 .env
 .DS_Store
 napcat-data/
@@ -10,6 +11,7 @@ web/tsconfig.tsbuildinfo
 web/dist/
 server/dist/
 docker/qq-plugin/node_modules/
+ClawPanel_logo/
 docs/CSDN-blog.md
 docs/blog-csdn.md
 docs/blog-xiaohongshu.md
