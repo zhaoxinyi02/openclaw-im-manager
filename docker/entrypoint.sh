@@ -98,7 +98,7 @@ if [ ! -f "${ADMIN_CONFIG_PATH}" ]; then
 {
   "server": { "port": 6199, "host": "0.0.0.0", "token": "${ADMIN_TOKEN}" },
   "openclaw": { "configPath": "${OPENCLAW_CONFIG}", "autoSetup": true },
-  "napcat": { "wsUrl": "ws://127.0.0.1:${NAPCAT_WS_PORT}", "accessToken": "${NAPCAT_TOKEN}", "webuiPort": 6099 },
+  "napcat": { "wsUrl": "ws://127.0.0.1:${NAPCAT_WS_PORT}", "accessToken": "${NAPCAT_TOKEN}", "webuiPort": 6099, "webuiToken": "${WEBUI_TOKEN}" },
   "wechat": { "apiUrl": "${WECHAT_API_URL:-http://wechat:3001}", "token": "${WECHAT_TOKEN:-openclaw-wechat}", "enabled": true, "autoReply": true },
   "qq": {
     "ownerQQ": ${OWNER_QQ},
@@ -138,24 +138,30 @@ node server/dist/index.js &
 MANAGER_PID=$!
 echo "[ClawPanel] PID: ${MANAGER_PID}"
 
-# === 9. Start QQ (NapCat) as main process ===
+# === 9. Start QQ (NapCat) — loop restart so manager backend survives QQ crashes ===
 echo "[NapCat] 启动 QQ..."
 cd /app/napcat
 
-# 如果没有设置 ACCOUNT，自动从 NapCat 配置中检测已登录的 QQ 号
-if [ -z "${ACCOUNT}" ]; then
-    # 从 napcat_<QQ号>.json 文件名中提取 QQ 号
-    DETECTED=$(ls /app/napcat/config/napcat_*.json 2>/dev/null | head -1 | grep -oP 'napcat_\K[0-9]+')
-    if [ -n "${DETECTED}" ]; then
-        echo "[NapCat] 自动检测到已登录 QQ 号: ${DETECTED}，使用快速登录"
-        ACCOUNT="${DETECTED}"
-    fi
-fi
+set +e  # Prevent grep/ls failures from killing the script
 
-if [ -n "${ACCOUNT}" ]; then
-    echo "[NapCat] 使用快速登录: QQ ${ACCOUNT}"
-    exec gosu napcat /opt/QQ/qq --no-sandbox -q $ACCOUNT
-else
-    echo "[NapCat] 未检测到已登录账号，需要扫码登录"
-    exec gosu napcat /opt/QQ/qq --no-sandbox
-fi
+while true; do
+    # 如果没有设置 ACCOUNT，自动从 NapCat 配置中检测已登录的 QQ 号
+    if [ -z "${ACCOUNT}" ]; then
+        DETECTED=$(ls /app/napcat/config/napcat_*.json 2>/dev/null | head -1 | grep -oP 'napcat_\K[0-9]+' || true)
+        if [ -n "${DETECTED}" ]; then
+            echo "[NapCat] 自动检测到已登录 QQ 号: ${DETECTED}，使用快速登录"
+            ACCOUNT="${DETECTED}"
+        fi
+    fi
+
+    if [ -n "${ACCOUNT}" ]; then
+        echo "[NapCat] 使用快速登录: QQ ${ACCOUNT}"
+        gosu napcat /opt/QQ/qq --no-sandbox -q $ACCOUNT
+    else
+        echo "[NapCat] 未检测到已登录账号，需要扫码登录"
+        gosu napcat /opt/QQ/qq --no-sandbox
+    fi
+
+    echo "[NapCat] QQ 进程已退出，5秒后重启..."
+    sleep 5
+done

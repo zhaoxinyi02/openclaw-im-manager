@@ -354,15 +354,24 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
 
   async function napcatAuth(adminCfg: AdminConfig): Promise<string> {
     if (napcatCredential) return napcatCredential;
-    const webuiToken = adminCfg.get().server.token || 'openclaw-qq-admin';
+    const cfg = adminCfg.get();
+    const webuiToken = cfg.napcat.webuiToken || process.env['WEBUI_TOKEN'] || 'openclaw-qq-admin';
     const hash = crypto.createHash('sha256').update(webuiToken + '.napcat').digest('hex');
     try {
       const res = await napcatProxy('POST', '/api/auth/login', { hash });
       if (res.code === 0 && res.data?.Credential) {
         napcatCredential = res.data.Credential;
+      } else {
+        console.error('[NapCat Auth] Login failed:', JSON.stringify(res));
       }
-    } catch {}
+    } catch (err) {
+      console.error('[NapCat Auth] Error:', err);
+    }
     return napcatCredential;
+  }
+
+  function invalidateNapcatCredential() {
+    napcatCredential = '';
   }
 
   function napcatProxy(method: string, path: string, body?: any, credential?: string): Promise<any> {
@@ -383,11 +392,23 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
     });
   }
 
+  // Helper: call NapCat API with auto-retry on auth failure
+  async function napcatApiCall(method: string, path: string, body?: any): Promise<any> {
+    let cred = await napcatAuth(adminConfig);
+    const r = await napcatProxy(method, path, body, cred);
+    // If unauthorized, invalidate credential and retry once
+    if (r.code === -1 && r.message?.toLowerCase().includes('unauthorized')) {
+      invalidateNapcatCredential();
+      cred = await napcatAuth(adminConfig);
+      return napcatProxy(method, path, body, cred);
+    }
+    return r;
+  }
+
   // QQ Login Status
   router.post('/napcat/login-status', auth, async (_req, res) => {
     try {
-      const cred = await napcatAuth(adminConfig);
-      const r = await napcatProxy('POST', '/api/QQLogin/CheckLoginStatus', {}, cred);
+      const r = await napcatApiCall('POST', '/api/QQLogin/CheckLoginStatus');
       res.json({ ok: true, ...r });
     } catch (err) { res.json({ ok: false, error: String(err) }); }
   });
@@ -407,8 +428,7 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
   // Get QR Code
   router.post('/napcat/qrcode', auth, async (_req, res) => {
     try {
-      const cred = await napcatAuth(adminConfig);
-      const r = await napcatProxy('POST', '/api/QQLogin/GetQQLoginQrcode', {}, cred);
+      const r = await napcatApiCall('POST', '/api/QQLogin/GetQQLoginQrcode');
       const result = await qrUrlToBase64(r);
       res.json({ ok: true, ...result });
     } catch (err) { res.json({ ok: false, error: String(err) }); }
@@ -417,8 +437,7 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
   // Refresh QR Code
   router.post('/napcat/qrcode/refresh', auth, async (_req, res) => {
     try {
-      const cred = await napcatAuth(adminConfig);
-      const r = await napcatProxy('POST', '/api/QQLogin/RefreshQRcode', {}, cred);
+      const r = await napcatApiCall('POST', '/api/QQLogin/RefreshQRcode');
       const result = await qrUrlToBase64(r);
       res.json({ ok: true, ...result });
     } catch (err) { res.json({ ok: false, error: String(err) }); }
@@ -427,8 +446,7 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
   // Quick Login List
   router.get('/napcat/quick-login-list', auth, async (_req, res) => {
     try {
-      const cred = await napcatAuth(adminConfig);
-      const r = await napcatProxy('POST', '/api/QQLogin/GetQuickLoginQQ', {}, cred);
+      const r = await napcatApiCall('POST', '/api/QQLogin/GetQuickLoginQQ');
       res.json({ ok: true, ...r });
     } catch (err) { res.json({ ok: false, error: String(err) }); }
   });
@@ -436,8 +454,7 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
   // Quick Login
   router.post('/napcat/quick-login', auth, async (req, res) => {
     try {
-      const cred = await napcatAuth(adminConfig);
-      const r = await napcatProxy('POST', '/api/QQLogin/SetQuickLogin', { uin: req.body.uin }, cred);
+      const r = await napcatApiCall('POST', '/api/QQLogin/SetQuickLogin', { uin: req.body.uin });
       res.json({ ok: true, ...r });
     } catch (err) { res.json({ ok: false, error: String(err) }); }
   });
@@ -445,10 +462,9 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
   // Password Login (server computes MD5 since browsers don't support it)
   router.post('/napcat/password-login', auth, async (req, res) => {
     try {
-      const cred = await napcatAuth(adminConfig);
       const pwd = req.body.password || req.body.passwordMd5 || '';
       const passwordMd5 = crypto.createHash('md5').update(pwd).digest('hex');
-      const r = await napcatProxy('POST', '/api/QQLogin/PasswordLogin', { uin: req.body.uin, passwordMd5 }, cred);
+      const r = await napcatApiCall('POST', '/api/QQLogin/PasswordLogin', { uin: req.body.uin, passwordMd5 });
       res.json({ ok: true, ...r });
     } catch (err) { res.json({ ok: false, error: String(err) }); }
   });
@@ -456,8 +472,7 @@ export function createRoutes(adminConfig: AdminConfig, onebotClient: OneBotClien
   // Get QQ Login Info
   router.get('/napcat/login-info', auth, async (_req, res) => {
     try {
-      const cred = await napcatAuth(adminConfig);
-      const r = await napcatProxy('POST', '/api/QQLogin/GetQQLoginInfo', {}, cred);
+      const r = await napcatApiCall('POST', '/api/QQLogin/GetQQLoginInfo');
       res.json({ ok: true, ...r });
     } catch (err) { res.json({ ok: false, error: String(err) }); }
   });
