@@ -2,6 +2,7 @@
 # ============================================================
 # ClawPanel v4.3.0 — macOS 安装脚本
 # 用法: curl -fsSL https://raw.githubusercontent.com/zhaoxinyi02/ClawPanel/main/install-mac.sh | bash
+#   或: bash install-mac.sh
 # ============================================================
 set -euo pipefail
 
@@ -15,6 +16,15 @@ info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
 ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
+
+# Ensure we can read user input even when piped via curl|bash
+if [ ! -t 0 ]; then
+    if [ -e /dev/tty ]; then
+        exec < /dev/tty
+    else
+        error "Cannot read user input. Please download and run: bash install-mac.sh"
+    fi
+fi
 
 echo -e "${PURPLE}"
 echo "  ╔═══════════════════════════════════════════╗"
@@ -52,11 +62,25 @@ else
     git clone "${CLAWPANEL_REPO}" "${INSTALL_DIR}" && cd "${INSTALL_DIR}"
 fi
 
-info "Installing & building..."
-cd server && npm install --omit=dev && npx tsc && cd ..
-cd web && npm install && npm run build && cd ..
+info "Installing dependencies..."
+(cd "${INSTALL_DIR}/server" && npm install 2>/dev/null)
+
+info "Building backend..."
+(cd "${INSTALL_DIR}/server" && npx tsc)
+
+info "Installing frontend dependencies..."
+(cd "${INSTALL_DIR}/web" && npm install 2>/dev/null)
+
+info "Building frontend..."
+(cd "${INSTALL_DIR}/web" && npm run build)
+
+# Prune dev dependencies to save space
+info "Cleaning up dev dependencies..."
+(cd "${INSTALL_DIR}/server" && npm prune --omit=dev 2>/dev/null || true)
+(cd "${INSTALL_DIR}/web" && rm -rf node_modules 2>/dev/null || true)
 
 # Config
+cd "${INSTALL_DIR}"
 mkdir -p data
 cat > .env << EOF
 ADMIN_TOKEN=${ADMIN_TOKEN}

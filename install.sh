@@ -2,6 +2,7 @@
 # ============================================================
 # ClawPanel v4.3.0 — Linux 一键安装脚本
 # 用法: curl -fsSL https://raw.githubusercontent.com/zhaoxinyi02/ClawPanel/main/install.sh | bash
+#   或: bash install.sh
 # ============================================================
 set -euo pipefail
 
@@ -17,6 +18,15 @@ info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
 ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
+
+# Ensure we can read user input even when piped via curl|bash
+if [ ! -t 0 ]; then
+    if [ -e /dev/tty ]; then
+        exec < /dev/tty
+    else
+        error "无法读取用户输入。请下载后运行: bash install.sh"
+    fi
+fi
 
 echo -e "${PURPLE}"
 echo "  ╔═══════════════════════════════════════════╗"
@@ -119,18 +129,24 @@ else
 fi
 
 info "正在安装后端依赖..."
-cd server && npm install --omit=dev 2>/dev/null && cd ..
+(cd "${INSTALL_DIR}/server" && npm install 2>/dev/null)
 
 info "正在构建后端..."
-cd server && npx tsc 2>/dev/null && cd ..
+(cd "${INSTALL_DIR}/server" && npx tsc)
 
 info "正在安装前端依赖..."
-cd web && npm install 2>/dev/null && cd ..
+(cd "${INSTALL_DIR}/web" && npm install 2>/dev/null)
 
 info "正在构建前端..."
-cd web && npm run build 2>/dev/null && cd ..
+(cd "${INSTALL_DIR}/web" && npm run build)
+
+# Prune dev dependencies to save space
+info "清理开发依赖..."
+(cd "${INSTALL_DIR}/server" && npm prune --omit=dev 2>/dev/null || true)
+(cd "${INSTALL_DIR}/web" && rm -rf node_modules 2>/dev/null || true)
 
 # --- Create config ---
+cd "${INSTALL_DIR}"
 info "正在创建配置..."
 mkdir -p data
 

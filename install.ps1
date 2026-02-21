@@ -95,16 +95,20 @@ if (Test-Path $InstallDir) {
 
 # Build
 Write-Host "[INFO] Installing backend dependencies..." -ForegroundColor Cyan
-Set-Location server; npm install --omit=dev 2>$null; Set-Location ..
+Push-Location server; npm install 2>$null; Pop-Location
 
 Write-Host "[INFO] Building backend..." -ForegroundColor Cyan
-Set-Location server; npx tsc 2>$null; Set-Location ..
+Push-Location server; npx tsc; Pop-Location
 
 Write-Host "[INFO] Installing frontend dependencies..." -ForegroundColor Cyan
-Set-Location web; npm install 2>$null; Set-Location ..
+Push-Location web; npm install 2>$null; Pop-Location
 
 Write-Host "[INFO] Building frontend..." -ForegroundColor Cyan
-Set-Location web; npm run build 2>$null; Set-Location ..
+Push-Location web; npm run build; Pop-Location
+
+Write-Host "[INFO] Cleaning up dev dependencies..." -ForegroundColor Cyan
+Push-Location server; npm prune --omit=dev 2>$null; Pop-Location
+Remove-Item -Recurse -Force web\node_modules -ErrorAction SilentlyContinue
 
 # Config
 Write-Host "[INFO] Creating configuration..." -ForegroundColor Cyan
